@@ -29,7 +29,7 @@ from flask import (
 from six.moves import range as xrange
 from werkzeug.datastructures import WWWAuthenticate, MultiDict
 from werkzeug.http import http_date
-from werkzeug.wrappers import BaseResponse
+from werkzeug.wrappers import Response as BaseResponse
 from werkzeug.http import parse_authorization_header
 from flasgger import Swagger, NO_SANITIZER
 
@@ -716,7 +716,6 @@ def stream_n_messages(n):
         description: Streamed JSON responses.
     """
     response = get_dict("url", "args", "headers", "origin")
-    n = min(n, 100)
 
     def generate_stream():
         for i in range(n):
@@ -1194,7 +1193,7 @@ def digest_auth(
 
 @app.route("/delay/<delay>", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "TRACE"])
 def delay_response(delay):
-    """Returns a delayed response (max of 10 seconds).
+    """Returns a delayed response.
     ---
     tags:
       - Dynamic data
@@ -1208,7 +1207,6 @@ def delay_response(delay):
       200:
         description: A delayed response.
     """
-    delay = min(float(delay), 10)
 
     time.sleep(delay)
 
@@ -1256,7 +1254,7 @@ def drip():
     """
     args = CaseInsensitiveDict(request.args.items())
     duration = float(args.get("duration", 2))
-    numbytes = min(int(args.get("numbytes", 10)), (10 * 1024 * 1024))  # set 10MB limit
+    numbytes = int(args.get("numbytes", 10))
     code = int(args.get("code", 200))
 
     if numbytes <= 0:
@@ -1436,8 +1434,6 @@ def random_bytes(n):
         description: Bytes.
     """
 
-    n = min(n, 100 * 1024)  # set 100KB limit
-
     params = CaseInsensitiveDict(request.args.items())
     if "seed" in params:
         random.seed(int(params["seed"]))
@@ -1445,7 +1441,7 @@ def random_bytes(n):
     response = make_response()
 
     # Note: can't just use os.urandom here because it ignores the seed
-    response.data = bytearray(random.randint(0, 255) for i in range(n))
+    response.data = bytes(random.randint(0, 255) for i in range(n))
     response.content_type = "application/octet-stream"
     return response
 
@@ -1466,8 +1462,6 @@ def stream_random_bytes(n):
       200:
         description: Bytes.
     """
-    n = min(n, 100 * 1024)  # set 100KB limit
-
     params = CaseInsensitiveDict(request.args.items())
     if "seed" in params:
         random.seed(int(params["seed"]))
@@ -1510,14 +1504,6 @@ def range_request(numbytes):
       200:
         description: Bytes.
     """
-
-    if numbytes <= 0 or numbytes > (100 * 1024):
-        response = Response(
-            headers={"ETag": "range%d" % numbytes, "Accept-Ranges": "bytes"}
-        )
-        response.status_code = 404
-        response.data = "number of bytes must be in the range (0, 102400]"
-        return response
 
     params = CaseInsensitiveDict(request.args.items())
     if "chunk_size" in params:
@@ -1603,7 +1589,7 @@ def link_page(n, offset):
       200:
         description: HTML links.
     """
-    n = min(max(1, n), 200)  # limit to between 1 and 200 links
+    n = max(1, n)
 
     link = "<a href='{0}'>{1}</a> "
 
